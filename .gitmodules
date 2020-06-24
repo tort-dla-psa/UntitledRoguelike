@@ -1,0 +1,9 @@
+[submodule "third-party/FastNoise"]
+	path = third-party/FastNoise
+	url = https://github.com/Auburns/FastNoise.git
+[submodule "third-party/rwqueue"]
+	path = third-party/rwqueue
+	url = https://github.com/cameron314/readerwriterqueue
+[submodule "third-party/imgui"]
+	path = third-party/imgui
+	url = https://github.com/ocornut/imgui
