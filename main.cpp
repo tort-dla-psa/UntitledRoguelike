@@ -1,6 +1,9 @@
 #include <chrono>
 #include <ios>
 #include <iostream>
+#include <queue>
+#include <future>
+#include "chunk.h"
 #include "color.h"
 #include "imgui/imgui.h"
 #include "imgui/examples/imgui_impl_sdl.h"
@@ -8,9 +11,11 @@
 #include "material.h"
 #include "rwqueue/readerwriterqueue.h"
 #include <SDL.h>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <vector>
 #include <complex>
 #include <thread>
@@ -24,48 +29,31 @@
 #include "cam.h"
 
 ImColor fg_clr = ImColor({250, 250, 250});
-
-/*
-void draw_polygon(ImDrawList* drawList, const polygon &pol,
-    bool draw_labels=false)
-{
-    auto draw_lbl = [drawList](polygon::dot_t dot){
-        std::stringstream ss;
-        ss.precision(2);
-        ss<< std::fixed << dot.x << " " << dot.y;
-        auto str = ss.str();
-        drawList->AddText({dot.x, dot.y}, fg_clr, str.c_str(), NULL);
-    };
-    std::optional<std::vector<game::dot>> norms;
-    for(size_t n = 0; n<pol.size(); n++){
-        auto beg = pol.at(n);
-        auto end = pol.at((n+1)%pol.size());
-        drawList->AddLine({beg.x, beg.y}, {end.x, end.y}, fg_clr);
-        if(draw_labels)
-            draw_lbl(beg);
-    }
-}
-*/
+ImColor bg_clr;
 
 int main(int, char**) {
-    moodycamel::BlockingReaderWriterQueue<int> q;
-    game::engine g(q);
+    game::engine g;
+    const size_t ch_w = 32, ch_h = 32; //in tiles
+    {
+        game::material air;
+        auto air_clr = game::color{230, 230, 230, 64};
+        air.set_color(air_clr);
+        bg_clr = ImColor({air_clr.r, air_clr.g, air_clr.b});
+        game::material ground;
+        ground.set_color({100, 100, 100, 255});
+        game::map_gen_settings sets{air, ground, ch_w, ch_h, 128};
+        game::map m(sets);
+        g.set_map(m);
+    }
     g.run();
-    game::material air;
-    air.set_color({230, 230, 230, 230});
-    game::material ground;
-    ground.set_color({100, 100, 100, 255});
-    game::map_gen_settings sets{air, ground, 16, 16, 128};
-    game::map m(sets);
 
     const unsigned w = 1920, h = 1080;
-    size_t depth = 1;
-    size_t tile_draw_w = 20, 
-        tile_draw_h = 20;
+    const size_t tile_draw_w = 32, 
+        tile_draw_h = 32;
 
     game::cam c;
-    c.set_pos({0,0,0});
-    c.set_fov({w/tile_draw_w, h/tile_draw_h, 1});
+    c.set_pos({0,0,0});//in tiles
+    c.set_fov({w/tile_draw_w, h/tile_draw_h, 1}); //in tiles
     int ui_beg_x = w/2 - c.fov().x * tile_draw_w/2;
     int ui_beg_y = h/2 - c.fov().y * tile_draw_h/2;
 
@@ -132,6 +120,7 @@ int main(int, char**) {
     GLuint id;
     GLubyte raw[w*h*4];
     std::fill(std::begin(raw), std::end(raw), 128);
+    /*
     glGenTextures(1, &id);
     glBindTexture(GL_TEXTURE_2D, id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); //scale linearly when image bigger than texture
@@ -139,6 +128,7 @@ int main(int, char**) {
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, &raw);
     glBindTexture(GL_TEXTURE_2D, 0);
+    */
     bool draw_labels = false;
 
     ImVec2 drag_1, drag_2, prev_drag_2;
@@ -190,54 +180,52 @@ int main(int, char**) {
             drag_beg = false;
         }
         auto size = ImGui::GetIO().DisplaySize;
-        glBindTexture(GL_TEXTURE_2D, id);
-        auto txtr_size = tile_draw_h*tile_draw_w*4;
-        size_t x_cnt = 0;
-        size_t y_cnt = 0;
-        auto x_end = c.pos().x+c.fov().x;
-        auto y_end = c.pos().y+c.fov().y;
-        for(size_t x = c.pos().x; x < x_end; x++){
-            y_cnt = 0;
-            for(size_t y = c.pos().y; y < y_end; y++){
-                auto chunk_ptr = m.get_chunk(x, y);
-                if(!chunk_ptr){
-                    chunk_ptr = m.gen_chunk(x, y);
+        //glBindTexture(GL_TEXTURE_2D, id);
+        //auto txtr_size = tile_draw_h*tile_draw_w*4;
+        std::queue<std::future<game::map::ptr_t<game::chunk>>> ftrs;
+
+        {
+            const auto x_end = (c.pos().x+c.fov().x+ch_w-1); //in tiles
+            const auto y_end = (c.pos().y+c.fov().y+ch_h-1); //in tiles
+            for(size_t x = c.pos().x; x < x_end; x+=ch_w){
+                for(size_t y = c.pos().y; y < y_end; y+=ch_h){
+                    auto chunk_ftr = g.get_chunk(x, y);
+                    ftrs.emplace(std::move(chunk_ftr));
                 }
-                auto& chunk = *chunk_ptr;
-                for(int z = c.fov().z-1; z > -1; z--){
-                    auto tl = chunk.get_tile(x, y, c.pos().z + z);
-                    GLubyte txtr[txtr_size];
-                    auto clr = tl.mat().color();
-                    for(size_t px = 0; px<txtr_size; px+=4){
-                        txtr[px+0] = clr.r;
-                        txtr[px+1] = clr.g;
-                        txtr[px+2] = clr.b;
-                        txtr[px+3] = clr.a;
-                    }
-                    auto draw_x = ui_beg_x + x_cnt*tile_draw_w;
-                    auto draw_y = ui_beg_y + y_cnt*tile_draw_h;
-                    glTexSubImage2D(GL_TEXTURE_2D, 0, draw_x, draw_y,
-                        tile_draw_w, tile_draw_h, GL_RGBA, GL_UNSIGNED_BYTE,
-                        &txtr);
-                }
-                y_cnt++;
             }
-            x_cnt++;
+            std::cout << "futures placed\n";
         }
-        glBindTexture(GL_TEXTURE_2D, 0);
-        /*
-        if(q.try_dequeue(res)){
-            do{
-                glBindTexture(GL_TEXTURE_2D, id);
-                glTexSubImage2D(GL_TEXTURE_2D, 0, i.x, i.y,
-                        i.w, i.h, GL_RGB, GL_UNSIGNED_BYTE,
-                        i.pixels.data());
-                glBindTexture(GL_TEXTURE_2D, 0);
-            }while(q.try_dequeue(res));
+        while(!ftrs.empty()){
+            const auto chunk_ptr = ftrs.front().get();
+            const auto& chunk = *chunk_ptr;
+            const auto x_ = chunk.x();
+            const auto y_ = chunk.y();
+            std::cout << "ch:" << x_ << "tl " << y_ << "tl\n";
+            const ImVec2 draw_size{tile_draw_w*1.f, tile_draw_h*1.f};
+            const auto draw_x_start = std::max(x_, c.pos().x);
+            const auto draw_x_end = std::min(x_ + chunk.w(), c.pos().x + c.fov().x);
+            const auto draw_y_start = std::max(y_, c.pos().y);
+            const auto draw_y_end = std::min(y_ + chunk.h(), c.pos().y + c.fov().y);
+            for(size_t x = draw_x_start; x < draw_x_end; x++){
+                const auto draw_x = ui_beg_x + (x-c.pos().x)*tile_draw_w;
+                for(size_t y = draw_y_start; y < draw_y_end; y++){
+                    const auto draw_y = ui_beg_y + (y-c.pos().y)*tile_draw_h;
+                    const ImVec2 draw_coords1{draw_x*1.f, draw_y*1.f};
+                    const ImVec2 draw_coords2{draw_coords1.x + draw_size.x,
+                        draw_coords1.y + draw_size.y};
+                    for(int z = c.fov().z-1; z > -1; z--){
+                        const auto& tl = chunk.get_tile(x%chunk.w(), y%chunk.h(), c.pos().z + z);
+                        const auto clr = tl.mat().color();
+                        const auto clr_imtui = ImColor(clr.r, clr.g, clr.b, clr.a);
+                        drawList->AddRectFilled(draw_coords1, draw_coords2, clr_imtui);
+                    }
+                }
+            }
+            ftrs.pop();
         }
-        */
-        
-        drawList->AddImage((void*)(intptr_t)id, ImVec2(0,0), ImVec2(1920, 1080));
+        drawList->AddRect({0,0}, {c.fov().x*tile_draw_w, c.fov().y*tile_draw_h}, ImColor(0,0,0));
+
+        //drawList->AddImage((void*)(intptr_t)id, ImVec2(0,0), ImVec2(1920, 1080));
         if(drag_beg){
         }
 
@@ -245,7 +233,7 @@ int main(int, char**) {
         // Rendering
         ImGui::Render();
         glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
-        glClearColor(0, 0, 0, 0);
+        glClearColor(1, 1, 1, 1);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         SDL_GL_SwapWindow(window);

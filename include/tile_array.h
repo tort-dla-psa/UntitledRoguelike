@@ -19,7 +19,7 @@ public:
     void set_w(const dim_t &dim);
     void set_h(const dim_t &dim);
     void set_d(const dim_t &dim);
-    const class tile& get_tile(const dim_t &x, const dim_t &y, const dim_t &z);
+    const class tile& get_tile(const dim_t &x, const dim_t &y, const dim_t &z)const;
     void set_tile(const dim_t &x, const dim_t &y, const dim_t &z,
            class tile&& t);
 };
@@ -45,7 +45,7 @@ void tile_array::set_d(const tile_array::dim_t &dim){
     this->m_d = dim;
     m_cont.resize(m_w*m_h*m_d);
 }
-const tile& tile_array::get_tile(const dim_t &x, const dim_t &y, const dim_t &z){
+const tile& tile_array::get_tile(const dim_t &x, const dim_t &y, const dim_t &z)const{
     return m_cont.at(x+y*m_w+z*m_w*m_h);
 }
 void tile_array::set_tile(const dim_t &x, const dim_t &y, const dim_t &z,

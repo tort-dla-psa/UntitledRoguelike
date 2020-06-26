@@ -10,7 +10,7 @@ public:
         const dim_t &w=1, const dim_t &h=1, const dim_t &d=1);
     const dim_t& x()const;
     const dim_t& y()const;
-    const class tile& get_tile(const dim_t &x, const dim_t &y, const dim_t &z);
+    const class tile& get_tile(const dim_t &x, const dim_t &y, const dim_t &z)const;
     void set_tile(const dim_t &x, const dim_t &y, const dim_t &z,
            class tile&& t);
 };
@@ -27,7 +27,7 @@ const chunk::dim_t& chunk::x()const
 const chunk::dim_t& chunk::y()const
 { return this->m_y; }
 
-const tile& chunk::get_tile(const dim_t &x, const dim_t &y, const dim_t &z){
+const tile& chunk::get_tile(const dim_t &x, const dim_t &y, const dim_t &z)const{
     return tile_array::get_tile(x%w(), y%h(), z%d());
 }
 void chunk::set_tile(const dim_t &x, const dim_t &y, const dim_t &z,
