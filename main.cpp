@@ -34,18 +34,31 @@ ImColor bg_clr;
 int main(int, char**) {
     game::engine g;
     const size_t ch_w = 32, ch_h = 32; //in tiles
+    float air_clr_fl[4] = { 200./255., 245./255., 255./255, 40./255. };
+    float gnd_clr_fl[4] = {   0./255.,  30./255.,   7./255, 255./255. };
+    game::material air, gnd;
     {
-        game::material air;
-        auto air_clr = game::color{230, 230, 230, 64};
+        game::color air_clr;
+        air_clr.r = air_clr_fl[0]*255;
+        air_clr.g = air_clr_fl[1]*255;
+        air_clr.b = air_clr_fl[2]*255;
         air.set_color(air_clr);
+
+        game::color gnd_clr;
+        gnd_clr.r = gnd_clr_fl[0]*255;
+        gnd_clr.g = gnd_clr_fl[1]*255;
+        gnd_clr.b = gnd_clr_fl[2]*255;
+        gnd.set_color(gnd_clr);
+
         bg_clr = ImColor({air_clr.r, air_clr.g, air_clr.b});
-        game::material ground;
-        ground.set_color({100, 100, 100, 255});
-        game::map_gen_settings sets{air, ground, ch_w, ch_h, 128};
+        game::map_gen_settings sets{air, gnd, ch_w, ch_h, 128};
         game::map m(sets);
         g.set_map(m);
     }
     g.run();
+
+    auto air_clr = air.color();
+    auto gnd_clr = gnd.color();
 
     const unsigned w = 1920, h = 1080;
     const size_t tile_draw_w = 32, 
@@ -161,9 +174,20 @@ int main(int, char**) {
         ImGui::InputInt("X fov", (int*)&cam_fv_x);
         ImGui::InputInt("Y fov", (int*)&cam_fv_y);
         ImGui::InputInt("Z fov", (int*)&cam_fv_z);
+        ImGui::ColorEdit4("Air color", air_clr_fl);
+        ImGui::ColorEdit3("Ground color", gnd_clr_fl);
+        ImGui::End();
+
         c.set_pos({cam_x, cam_y, cam_z});
         c.set_fov({cam_fv_x, cam_fv_y, cam_fv_z});
-        ImGui::End();
+        air_clr->r = air_clr_fl[0]*255;
+        air_clr->g = air_clr_fl[1]*255;
+        air_clr->b = air_clr_fl[2]*255;
+        air_clr->a = air_clr_fl[3]*255;
+        gnd_clr->r = gnd_clr_fl[0]*255;
+        gnd_clr->g = gnd_clr_fl[1]*255;
+        gnd_clr->b = gnd_clr_fl[2]*255;
+
         if(ImGui::IsMouseClicked(0)){
             drag_1 = ImGui::GetMousePos();
         }
@@ -216,18 +240,15 @@ int main(int, char**) {
                     for(int z = c.fov().z-1; z > -1; z--){
                         const auto& tl = chunk.get_tile(x%chunk.w(), y%chunk.h(), c.pos().z + z);
                         const auto clr = tl.mat().color();
-                        const auto clr_imtui = ImColor(clr.r, clr.g, clr.b, clr.a);
+                        const auto clr_imtui = ImColor(clr->r, clr->g, clr->b, clr->a);
                         drawList->AddRectFilled(draw_coords1, draw_coords2, clr_imtui);
                     }
                 }
             }
             ftrs.pop();
         }
-        drawList->AddRect({0,0}, {c.fov().x*tile_draw_w, c.fov().y*tile_draw_h}, ImColor(0,0,0));
 
         //drawList->AddImage((void*)(intptr_t)id, ImVec2(0,0), ImVec2(1920, 1080));
-        if(drag_beg){
-        }
 
         prev_drag_2 = drag_2;
         // Rendering
