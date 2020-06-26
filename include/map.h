@@ -44,6 +44,9 @@ map::map(const map_gen_settings &settings) {
     this->m_settings = settings;
     m_height_gen.SetSeed(0);
     m_height_gen.SetNoiseType(FastNoise::SimplexFractal);
+
+    m_height_gen.SetSeed(1);
+    m_height_gen.SetNoiseType(FastNoise::SimplexFractal);
 }
 
 void map::set_biome_gen(const FastNoise &gen)
@@ -90,6 +93,8 @@ map::ptr_t<chunk> map::gen_chunk(const size_t &x, const size_t &y){
     auto beg_x = x/ch_w*ch_w;
     auto beg_y = y/ch_h*ch_h;
 
+    float cave_min = 0.9;
+    float cave_max = 1.0;
     std::vector<float> heightMap;
     heightMap.resize(ch_w*ch_h);
 
@@ -105,8 +110,15 @@ map::ptr_t<chunk> map::gen_chunk(const size_t &x, const size_t &y){
                 ch->set_tile(x,y,z, std::move(t));
             }
             for(dim_t z = dim_t(val); z < ch_d; z++) {
+                auto cave_val = m_cave_gen.GetNoise(x, y, z);
                 tile t;
-                t.set_mat(solid);
+                if(cave_val >= cave_min &&
+                        cave_val < cave_max)
+                {
+                    t.set_mat(air);
+                }else{
+                    t.set_mat(solid);
+                }
                 ch->set_tile(x,y,z, std::move(t));
             }
         }
