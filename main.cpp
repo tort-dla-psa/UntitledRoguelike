@@ -16,6 +16,7 @@
 #include <string>
 #include <tuple>
 #include <type_traits>
+#include <typeinfo>
 #include <vector>
 #include <complex>
 #include <thread>
@@ -60,15 +61,15 @@ int main(int, char**) {
     auto air_clr = air.color();
     auto gnd_clr = gnd.color();
 
-    const unsigned w = 1920, h = 1080;
-    const size_t tile_draw_w = 32, 
-        tile_draw_h = 32;
+    unsigned short w = 1920, h = 1080;
+    unsigned short tile_draw_w = 32;
 
+    int cam_fov_z = 7;
     game::cam c;
     c.set_pos({0,0,0});//in tiles
-    c.set_fov({w/tile_draw_w, h/tile_draw_h, 1}); //in tiles
+    c.set_fov({w/tile_draw_w, h/tile_draw_w, cam_fov_z}); //in tiles
     int ui_beg_x = w/2 - c.fov().x * tile_draw_w/2;
-    int ui_beg_y = h/2 - c.fov().y * tile_draw_h/2;
+    int ui_beg_y = h/2 - c.fov().y * tile_draw_w/2;
 
 
     if (SDL_Init(SDL_INIT_VIDEO |
@@ -131,8 +132,8 @@ int main(int, char**) {
     // Main loop
     bool done = false;
     GLuint id;
-    GLubyte raw[w*h*4];
-    std::fill(std::begin(raw), std::end(raw), 128);
+    //GLubyte raw[w*h*4];
+    //std::fill(std::begin(raw), std::end(raw), 128);
     /*
     glGenTextures(1, &id);
     glBindTexture(GL_TEXTURE_2D, id);
@@ -146,17 +147,83 @@ int main(int, char**) {
 
     ImVec2 drag_1, drag_2, prev_drag_2;
     bool drag_beg;
-    size_t cam_x = c.pos().x, cam_y = c.pos().y, cam_z = c.pos().z;
-    size_t cam_fv_x = c.fov().x, cam_fv_y = c.fov().y, cam_fv_z = c.fov().z;
 
+    bool pressed_left  = false;
+    bool pressed_right = false;
+    bool pressed_up    = false;
+    bool pressed_down  = false;
+    bool pressed_shift = false;
+    bool pressed_plus = false;
+    bool pressed_minus = false;
+    auto key_left  = SDLK_h;
+    auto key_right = SDLK_l;
+    auto key_up    = SDLK_k;
+    auto key_down  = SDLK_j;
+    auto key_up_z  = 'K';
+    auto key_down_z= 'J';
     while (!done) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             ImGui_ImplSDL2_ProcessEvent(&event);
-            if (event.type == SDL_QUIT)
+            if (event.type == SDL_QUIT){
                 done = true;
-            if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(window))
+            }
+            if (event.type == SDL_WINDOWEVENT &&
+                event.window.event == SDL_WINDOWEVENT_CLOSE &&
+                event.window.windowID == SDL_GetWindowID(window))
+            {
                 done = true;
+            }
+            if (event.type == SDL_KEYDOWN) {
+                auto sym = event.key.keysym.sym;
+                pressed_plus =  (sym == SDLK_PLUS)?true:pressed_plus;
+                pressed_minus=  (sym == SDLK_MINUS)?true:pressed_minus;
+                pressed_left =  (sym == key_left )?true:pressed_left;
+                pressed_right = (sym == key_right)?true:pressed_right;
+                pressed_up =    (sym == key_up   )?true:pressed_up;
+                pressed_down =  (sym == key_down )?true:pressed_down;
+                pressed_shift = (event.key.keysym.mod == KMOD_LSHIFT ||
+                    event.key.keysym.mod == KMOD_RSHIFT ||
+                    sym == SDLK_LSHIFT ||
+                    sym == SDLK_RSHIFT)
+                    ?true:pressed_shift;
+            } else if(event.type == SDL_KEYUP){
+                auto sym = event.key.keysym.sym;
+                pressed_plus =  (sym == SDLK_PLUS)?false:pressed_plus;
+                pressed_minus=  (sym == SDLK_MINUS)?false:pressed_minus;
+                pressed_left =  (sym == key_left )?false:pressed_left;
+                pressed_right = (sym == key_right)?false:pressed_right;
+                pressed_up =    (sym == key_up   )?false:pressed_up;
+                pressed_down =  (sym == key_down )?false:pressed_down;
+                pressed_shift = (sym == SDLK_LSHIFT ||
+                    sym == SDLK_RSHIFT)?false:pressed_shift;
+            }
+        }
+
+        if(pressed_left) {
+            c.pos().x -= 1;
+        }
+        if(pressed_right) {
+            c.pos().x += 1;
+        }
+        if(pressed_up) {
+            if(!pressed_shift){
+                c.pos().y -= 1;
+            }else{
+                c.pos().z -= 1;
+            }
+        }
+        if(pressed_down) {
+            if(!pressed_shift){
+                c.pos().y += 1;
+            }else{
+                c.pos().z += 1;
+            }
+        }
+        if(pressed_plus){
+            c.zoom() += 0.05;
+        }else if(pressed_minus){
+            c.zoom() -= 0.05;
         }
 
         // Start the Dear ImGui frame
@@ -168,18 +235,13 @@ int main(int, char**) {
         ImGui::Begin("Parameters");
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         ImGui::Checkbox("Draw verts labels", &draw_labels);
-        ImGui::InputInt("X", (int*)&cam_x);
-        ImGui::InputInt("Y", (int*)&cam_y);
-        ImGui::InputInt("Z", (int*)&cam_z);
-        ImGui::InputInt("X fov", (int*)&cam_fv_x);
-        ImGui::InputInt("Y fov", (int*)&cam_fv_y);
-        ImGui::InputInt("Z fov", (int*)&cam_fv_z);
+        ImGui::LabelText("Cam X", "%lu", c.pos().x);
+        ImGui::LabelText("Cam Y", "%lu", c.pos().y);
+        ImGui::LabelText("Cam Z", "%lu", c.pos().z);
         ImGui::ColorEdit4("Air color", air_clr_fl);
         ImGui::ColorEdit3("Ground color", gnd_clr_fl);
         ImGui::End();
 
-        c.set_pos({cam_x, cam_y, cam_z});
-        c.set_fov({cam_fv_x, cam_fv_y, cam_fv_z});
         air_clr->r = air_clr_fl[0]*255;
         air_clr->g = air_clr_fl[1]*255;
         air_clr->b = air_clr_fl[2]*255;
@@ -217,15 +279,13 @@ int main(int, char**) {
                     ftrs.emplace(std::move(chunk_ftr));
                 }
             }
-            std::cout << "futures placed\n";
         }
         while(!ftrs.empty()){
             const auto chunk_ptr = ftrs.front().get();
             const auto& chunk = *chunk_ptr;
             const auto x_ = chunk.x();
             const auto y_ = chunk.y();
-            std::cout << "ch:" << x_ << "tl " << y_ << "tl\n";
-            const ImVec2 draw_size{tile_draw_w*1.f, tile_draw_h*1.f};
+            const ImVec2 draw_size{tile_draw_w*1.f, tile_draw_w*1.f};
             const auto draw_x_start = std::max(x_, c.pos().x);
             const auto draw_x_end = std::min(x_ + chunk.w(), c.pos().x + c.fov().x);
             const auto draw_y_start = std::max(y_, c.pos().y);
@@ -233,7 +293,7 @@ int main(int, char**) {
             for(size_t x = draw_x_start; x < draw_x_end; x++){
                 const auto draw_x = ui_beg_x + (x-c.pos().x)*tile_draw_w;
                 for(size_t y = draw_y_start; y < draw_y_end; y++){
-                    const auto draw_y = ui_beg_y + (y-c.pos().y)*tile_draw_h;
+                    const auto draw_y = ui_beg_y + (y-c.pos().y)*tile_draw_w;
                     const ImVec2 draw_coords1{draw_x*1.f, draw_y*1.f};
                     const ImVec2 draw_coords2{draw_coords1.x + draw_size.x,
                         draw_coords1.y + draw_size.y};

@@ -14,10 +14,13 @@ public:
     cam();
 
     const dot_t& pos()const;
+    dot_t& pos();
     void set_pos(const dot_t& pos);
     const dot_t& fov()const;
+    dot_t& fov();
     void set_fov(const dot_t& fov);
     const fp_t& zoom()const;
+    fp_t& zoom();
     void set_zoom(const fp_t& zoom);
 };
 

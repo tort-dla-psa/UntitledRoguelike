@@ -40,6 +40,7 @@ add_executable(game main.cpp
     ${SRCS}
     ${IMGUI_SRC}
     )
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native -mtune=native")
 
 target_link_libraries (game ${GLEW_LIBRARIES} ${OPENGL_LIBRARIES} ${SDL2_LIBRARIES} pthread)
 

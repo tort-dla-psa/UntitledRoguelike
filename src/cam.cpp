@@ -13,16 +13,25 @@ cam::cam()
 const dt_t& cam::pos()const
 { return m_pos; }
 
+dt_t& cam::pos()
+{ return m_pos; }
+
 void cam::set_pos(const dt_t& pos)
 { this->m_pos = pos; }
 
 const dt_t& cam::fov()const
 { return m_fov; }
 
+dt_t& cam::fov()
+{ return m_fov; }
+
 void cam::set_fov(const dt_t& fov)
 { this->m_fov = fov; }
 
 const fp_t& cam::zoom()const
+{ return m_zoom; }
+
+fp_t& cam::zoom()
 { return m_zoom; }
 
 void cam::set_zoom(const fp_t& zoom)
