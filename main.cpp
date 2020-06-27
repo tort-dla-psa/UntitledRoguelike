@@ -1,17 +1,16 @@
 #include <iostream>
 #include <ios>
-#include <iomanip>
 #include <memory>
 #include <queue>
 #include <future>
 #include <sstream>
-#include <fstream>
 #include <string>
 #include <GL/glew.h>
 #include <SDL.h>
 #include "imgui/imgui.h"
 #include "imgui/examples/imgui_impl_sdl.h"
 #include "imgui/examples/imgui_impl_opengl3.h"
+#include "nfd.hpp"
 #include "nlohmann-json/single_include/nlohmann/json.hpp"
 #include "rwqueue/readerwriterqueue.h"
 #include "gfx_funcs.h"
@@ -22,10 +21,41 @@
 #include "chunk.h"
 #include "color.h"
 #include "material.h"
-#include "json_io.h"
 
 ImColor fg_clr = ImColor({250, 250, 250});
 ImColor bg_clr;
+
+void ui_save(const game::engine &g){
+    std::string path;
+    NFD_Init();
+    nfdchar_t *outPath;
+    nfdfilteritem_t filterItem[1] = { "roguelike saves", "json" };
+    nfdresult_t result = NFD_SaveDialog(&outPath, filterItem, 1, NULL, "save");
+    if ( result == NFD_OKAY ) {
+        path = std::string(outPath);
+        g.save(path);
+        NFD_FreePath(outPath);
+    } else if ( result == NFD_CANCEL ) {
+    } else {
+        printf("Error: %s\n", NFD_GetError() );
+    }
+}
+
+void ui_load(game::engine &g){
+    std::string path;
+    NFD_Init();
+    nfdchar_t *outPath;
+    nfdfilteritem_t filterItem[1] = { "roguelike saves", "json" };
+    nfdresult_t result = NFD_OpenDialog(&outPath, filterItem, 1, NULL);
+    if ( result == NFD_OKAY ) {
+        path = std::string(outPath);
+        g.load(path);
+        NFD_FreePath(outPath);
+    } else if ( result == NFD_CANCEL ) {
+    } else {
+        printf("Error: %s\n", NFD_GetError() );
+    }
+}
 
 int main(int, char**) {
     game::engine g;
@@ -226,8 +256,28 @@ int main(int, char**) {
         ImGui::NewFrame();
         auto drawList = ImGui::GetBackgroundDrawList();
 
-        ImGui::Begin("Parameters");
+        ImGui::Begin("Menu");
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        if (ImGui::CollapsingHeader("Load/Save")){
+            std::string path;
+                /*
+                igfd::ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".cpp,.h,.hpp", ".");
+                if (igfd::ImGuiFileDialog::Instance()->FileDialog("ChooseFileDlgKey")) {
+                    if (igfd::ImGuiFileDialog::Instance()->IsOk == true) {
+                        path = igfd::ImGuiFileDialog::Instance()->GetFilepathName();
+                        name = igfd::ImGuiFileDialog::Instance()->GetCurrentPath();
+                    }
+                    igfd::ImGuiFileDialog::Instance()->CloseDialog("ChooseFileDlgKey");
+                }
+                */
+            bool load_pressed = ImGui::Button("Load"); ImGui::SameLine();
+            bool save_pressed = ImGui::Button("Save");
+            if(load_pressed){
+                ui_load(g);
+            }else if(save_pressed){
+                ui_save(g);
+            }
+        }
         ImGui::Checkbox("Draw verts labels", &draw_labels);
         ImGui::LabelText("Cam X", "%lu", c.pos().x);
         ImGui::LabelText("Cam Y", "%lu", c.pos().y);
@@ -322,11 +372,6 @@ int main(int, char**) {
     SDL_GL_DeleteContext(gl_context);
     SDL_DestroyWindow(window);
     SDL_Quit();
-
-    nlohmann::json game_json = g;
-    std::ofstream ofs("save.json");
-    ofs << game_json;
-    ofs.close();
 
     return 0;
 }

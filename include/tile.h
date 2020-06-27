@@ -8,7 +8,4 @@ class tile:public Imaterialistic, public map_obj{
 public:
     tile();
 };
-
-tile::tile(){}
-
 }

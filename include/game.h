@@ -3,6 +3,8 @@
 #include <thread>
 #include <future>
 #include <mutex>
+#include <fstream>
+#include <iomanip>
 #include "rwqueue/readerwriterqueue.h"
 #include "map.h"
 #include "chunk.h"
@@ -54,37 +56,8 @@ public:
     map& get_map();
     std::future<map::ptr_t<chunk>>
         get_chunk(const chunk::dim_t &x, const chunk::dim_t &y);
+    void save(const std::string &path)const;
+    void load(const std::string &path);
 };
-
-engine::engine()
-    :m_sem(4)
-{}
-
-engine::~engine(){ }
-
-void engine::tick(){
-}
-
-void engine::set_map(const class map &m)
-{ this->m_map = m; }
-
-const map& engine::get_map()const
-{ return m_map; }
-
-map& engine::get_map()
-{ return m_map; }
-
-std::future<map::ptr_t<chunk>>
-    engine::get_chunk(const chunk::dim_t &x, const chunk::dim_t &y){
-    auto task = [this](auto x, auto y){
-        semaphore_controller sc(this->m_sem);
-        auto ch = m_map.get_chunk(x, y);
-        if(!ch){
-            ch = m_map.gen_chunk(x, y);
-        }
-        return ch;
-    };
-    return std::async(std::launch::async, std::move(task), x, y);
-}
 
 };

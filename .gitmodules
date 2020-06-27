@@ -10,3 +10,6 @@
 [submodule "third-party/nlohmann-json"]
 	path = third-party/nlohmann-json
 	url = https://github.com/nlohmann/json.git
+[submodule "third-party/nfd"]
+	path = third-party/nfd
+	url = https://github.com/btzy/nativefiledialog-extended
