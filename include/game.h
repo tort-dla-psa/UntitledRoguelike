@@ -43,17 +43,12 @@ public:
 class engine{
 public:
 private:
-    std::unique_ptr<map> m_map;
+    map m_map;
     semaphore m_sem;
-    std::thread thr;
-    bool m_stop;
-    
-    void p_run();
 public:
     engine();
     ~engine();
-    void run();
-    void stop();
+    void tick();
     void set_map(const class map &m);
     const map& get_map()const;
     map& get_map();
@@ -64,41 +59,28 @@ public:
 engine::engine()
     :m_sem(4)
 {}
-engine::~engine(){
-    if(thr.joinable())
-    { thr. join(); }
-}
-void engine::run(){
-    m_stop = false;
-    thr = std::thread([this](){ p_run(); });
-}
-void engine::stop(){
-    m_stop = true;
-}
 
-void engine::p_run(){
-    /*
-    while(!m_stop){
-    }
-    */
+engine::~engine(){ }
+
+void engine::tick(){
 }
 
 void engine::set_map(const class map &m)
-{ this->m_map = std::make_unique<class map>(m); }
+{ this->m_map = m; }
 
 const map& engine::get_map()const
-{ return *m_map; }
+{ return m_map; }
 
 map& engine::get_map()
-{ return *m_map; }
+{ return m_map; }
 
 std::future<map::ptr_t<chunk>>
     engine::get_chunk(const chunk::dim_t &x, const chunk::dim_t &y){
     auto task = [this](auto x, auto y){
         semaphore_controller sc(this->m_sem);
-        auto ch = m_map->get_chunk(x, y);
+        auto ch = m_map.get_chunk(x, y);
         if(!ch){
-            ch = m_map->gen_chunk(x, y);
+            ch = m_map.gen_chunk(x, y);
         }
         return ch;
     };

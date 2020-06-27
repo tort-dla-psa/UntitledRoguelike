@@ -9,29 +9,58 @@
 namespace game{
 
 struct map_gen_settings{
-    material air, solid;
+    std::vector<material> materials;
+    size_t seed_heights, seed_caves;
     tile_array::dim_t chunk_w, chunk_h, chunk_d;
+
+    map_gen_settings(){
+        seed_heights = 0;
+        seed_caves = 1;
+        chunk_w = 32;
+        chunk_h = 32;
+        chunk_d = 128;
+
+        game::material air, gnd;
+        game::color air_clr{ 200, 245, 255, 40 };
+        air.set_name("air");
+        air.set_color_gas(air_clr);
+        air.set_color_liquid(air_clr);
+        air.set_color_solid(air_clr);
+
+        game::color gnd_clr{   0,  30,   7, 255 };
+        gnd.set_name("dirt");
+        gnd.set_color_gas(gnd_clr);
+        gnd.set_color_liquid(gnd_clr);
+        gnd.set_color_solid(gnd_clr);
+        materials.emplace_back(std::move(air));
+        materials.emplace_back(std::move(gnd));
+    }
 };
 
 class map{
 public:
     template<class T>
     using ptr_t = std::shared_ptr<T>;
+    using chunk_cont_t = std::map<dot, ptr_t<chunk>>;
 private:
-    std::map<dot, ptr_t<chunk>> m_chunks;
+    chunk_cont_t m_chunks;
     map_gen_settings m_settings;
     FastNoise m_height_gen,
               m_cave_gen,
               m_biome_gen;
 public:
+    map();
     map(const map_gen_settings &settings);
-    void set_biome_gen(const FastNoise &gen);
-    void set_height_gen(const FastNoise &gen);
-    void set_cave_gen(const FastNoise &gen);
-    const FastNoise& biome_gen()const;
-    const FastNoise& height_gen()const;
-    const FastNoise& cave_gen()const;
+    const map_gen_settings& settings()const;
+    void set_gen_biome(const FastNoise &gen);
+    void set_gen_height(const FastNoise &gen);
+    void set_gen_cave(const FastNoise &gen);
+    const FastNoise& gen_biome()const;
+    const FastNoise& gen_height()const;
+    const FastNoise& gen_cave()const;
 
+    const chunk_cont_t& chunks()const;
+    chunk_cont_t& chunks();
     ptr_t<chunk> get_chunk(const dot &place);
     ptr_t<chunk> get_chunk(const size_t &x, const size_t &y);
     ptr_t<chunk> gen_chunk(const dot &place);
@@ -40,32 +69,46 @@ public:
     void del_chunk(const size_t &x, const size_t &y);
 };
 
+map::map()
+    :map(m_settings)
+{}
+
 map::map(const map_gen_settings &settings) {
     this->m_settings = settings;
-    m_height_gen.SetSeed(0);
-    m_height_gen.SetNoiseType(FastNoise::SimplexFractal);
 
-    m_height_gen.SetSeed(1);
+    m_height_gen.SetSeed(m_settings.seed_heights);
+    m_height_gen.SetSeed(m_settings.seed_caves);
+
+    m_height_gen.SetNoiseType(FastNoise::SimplexFractal);
     m_height_gen.SetNoiseType(FastNoise::SimplexFractal);
 }
 
-void map::set_biome_gen(const FastNoise &gen)
+const map_gen_settings& map::settings()const
+{ return m_settings; }
+
+void map::set_gen_biome(const FastNoise &gen)
 { this->m_biome_gen = gen; }
 
-void map::set_height_gen(const FastNoise &gen)
+void map::set_gen_height(const FastNoise &gen)
 { this->m_height_gen = gen; }
 
-void map::set_cave_gen(const FastNoise &gen)
+void map::set_gen_cave(const FastNoise &gen)
 { this->m_cave_gen = gen; }
 
-const FastNoise& map::biome_gen()const
+const FastNoise& map::gen_biome()const
 { return this->m_biome_gen; }
 
-const FastNoise& map::height_gen()const
+const FastNoise& map::gen_height()const
 { return this->m_height_gen; }
 
-const FastNoise& map::cave_gen()const
+const FastNoise& map::gen_cave()const
 { return this->m_cave_gen; }
+
+const map::chunk_cont_t& map::chunks()const
+{ return m_chunks; }
+
+map::chunk_cont_t& map::chunks()
+{ return m_chunks; }
 
 map::ptr_t<chunk> map::get_chunk(const dot &place)
 { return get_chunk(place.x, place.y); } 
@@ -85,8 +128,17 @@ map::ptr_t<chunk> map::gen_chunk(const dot &place)
 
 map::ptr_t<chunk> map::gen_chunk(const size_t &x, const size_t &y){
     using dim_t = tile_array::dim_t;
-    auto &air = m_settings.air;
-    auto &solid = m_settings.solid;
+    const auto& mats = m_settings.materials;
+    const auto air_it = std::find_if(mats.begin(), mats.end(),
+           [](const auto &mat) {
+               return mat.name() == "air";
+           });
+    const auto gnd_it = std::find_if(mats.begin(), mats.end(),
+           [](const auto &mat) {
+               return mat.name() == "dirt";
+           });
+    const auto air = *air_it;
+    const auto gnd = *gnd_it;
     auto &ch_w = m_settings.chunk_w;
     auto &ch_h = m_settings.chunk_h;
     auto &ch_d = m_settings.chunk_d;
@@ -117,7 +169,7 @@ map::ptr_t<chunk> map::gen_chunk(const size_t &x, const size_t &y){
                 {
                     t.set_mat(air);
                 }else{
-                    t.set_mat(solid);
+                    t.set_mat(gnd);
                 }
                 ch->set_tile(x,y,z, std::move(t));
             }

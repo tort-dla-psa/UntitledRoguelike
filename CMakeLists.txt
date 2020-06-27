@@ -33,6 +33,8 @@ set(IMGUI_SRC
 
 set(SRCS 
     src/cam.cpp
+    src/material.cpp
+    src/nameable.cpp
     third-party/FastNoise/FastNoise.cpp
     )
 

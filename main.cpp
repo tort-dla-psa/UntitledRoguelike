@@ -1,65 +1,59 @@
-#include <chrono>
-#include <ios>
 #include <iostream>
+#include <ios>
+#include <iomanip>
+#include <memory>
 #include <queue>
 #include <future>
-#include "chunk.h"
-#include "color.h"
+#include <sstream>
+#include <fstream>
+#include <string>
+#include <GL/glew.h>
+#include <SDL.h>
 #include "imgui/imgui.h"
 #include "imgui/examples/imgui_impl_sdl.h"
 #include "imgui/examples/imgui_impl_opengl3.h"
-#include "material.h"
+#include "nlohmann-json/single_include/nlohmann/json.hpp"
 #include "rwqueue/readerwriterqueue.h"
-#include <SDL.h>
-#include <memory>
-#include <sstream>
-#include <string>
-#include <tuple>
-#include <type_traits>
-#include <typeinfo>
-#include <vector>
-#include <complex>
-#include <thread>
-#include <mutex>
-#include <atomic>
-#include <optional>
-#include <GL/glew.h>
 #include "gfx_funcs.h"
 #include "game.h"
 #include "map.h"
 #include "cam.h"
+#include "item.h"
+#include "chunk.h"
+#include "color.h"
+#include "material.h"
+#include "json_io.h"
 
 ImColor fg_clr = ImColor({250, 250, 250});
 ImColor bg_clr;
 
 int main(int, char**) {
     game::engine g;
-    const size_t ch_w = 32, ch_h = 32; //in tiles
-    float air_clr_fl[4] = { 200./255., 245./255., 255./255, 40./255. };
-    float gnd_clr_fl[4] = {   0./255.,  30./255.,   7./255, 255./255. };
-    game::material air, gnd;
+
+    std::shared_ptr<game::color> air_clr, gnd_clr;
     {
-        game::color air_clr;
-        air_clr.r = air_clr_fl[0]*255;
-        air_clr.g = air_clr_fl[1]*255;
-        air_clr.b = air_clr_fl[2]*255;
-        air.set_color(air_clr);
-
-        game::color gnd_clr;
-        gnd_clr.r = gnd_clr_fl[0]*255;
-        gnd_clr.g = gnd_clr_fl[1]*255;
-        gnd_clr.b = gnd_clr_fl[2]*255;
-        gnd.set_color(gnd_clr);
-
-        bg_clr = ImColor({air_clr.r, air_clr.g, air_clr.b});
-        game::map_gen_settings sets{air, gnd, ch_w, ch_h, 128};
-        game::map m(sets);
-        g.set_map(m);
+        auto mats = g.get_map().settings().materials;
+        auto air_it = std::find_if(mats.begin(), mats.end(),
+               [](auto mat){ return mat.name() == "air"; });
+        auto gnd_it = std::find_if(mats.begin(), mats.end(),
+               [](auto mat){ return mat.name() == "dirt"; });
+        auto air = *air_it;
+        auto gnd = *gnd_it;
+        auto air_clr_tmp = air.color();
+        auto gnd_clr_tmp = gnd.color();
+        air_clr = std::const_pointer_cast<game::color>(air_clr_tmp);
+        gnd_clr = std::const_pointer_cast<game::color>(gnd_clr_tmp);
     }
-    g.run();
-
-    auto air_clr = air.color();
-    auto gnd_clr = gnd.color();
+    float air_clr_fl[4] = { air_clr->r*1.f/255.f,
+        air_clr->g*1.f/255.f,
+        air_clr->b*1.f/255.f,
+        air_clr->a*1.f/255.f };
+    float gnd_clr_fl[4] = { gnd_clr->r*1.f/255.f,
+        gnd_clr->g*1.f/255.f,
+        gnd_clr->b*1.f/255.f,
+        gnd_clr->a*1.f/255.f };
+    auto ch_w = g.get_map().settings().chunk_w;
+    auto ch_h = g.get_map().settings().chunk_h;
 
     unsigned short w = 1920, h = 1080;
     unsigned short tile_draw_w = 32;
@@ -328,7 +322,11 @@ int main(int, char**) {
     SDL_GL_DeleteContext(gl_context);
     SDL_DestroyWindow(window);
     SDL_Quit();
-    g.stop();
+
+    nlohmann::json game_json = g;
+    std::ofstream ofs("save.json");
+    ofs << game_json;
+    ofs.close();
 
     return 0;
 }

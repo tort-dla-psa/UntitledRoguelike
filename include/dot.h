@@ -7,6 +7,9 @@ struct dot{
     using coord_t = size_t;
     coord_t x, y, z=0;
 
+    dot()
+        :dot(0, 0, 0)
+    {}
     dot(const dot &rhs)
         :dot(rhs.x, rhs.y, rhs.z)
     {}
