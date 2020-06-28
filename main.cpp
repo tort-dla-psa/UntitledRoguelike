@@ -155,6 +155,7 @@ int main(int, char**) {
 
     // Main loop
     bool done = false;
+    bool show_create_item_win = false;
     GLuint id;
     //GLubyte raw[w*h*4];
     //std::fill(std::begin(raw), std::end(raw), 128);
@@ -167,7 +168,6 @@ int main(int, char**) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, &raw);
     glBindTexture(GL_TEXTURE_2D, 0);
     */
-    bool draw_labels = false;
 
     ImVec2 drag_1, drag_2, prev_drag_2;
     bool drag_beg;
@@ -223,12 +223,15 @@ int main(int, char**) {
                     sym == SDLK_RSHIFT)?false:pressed_shift;
             }
         }
+        static bool update_asked = true;
 
         if(pressed_left) {
             c.pos().x -= 1;
+            update_asked = true;
         }
         if(pressed_right) {
             c.pos().x += 1;
+            update_asked = true;
         }
         if(pressed_up) {
             if(!pressed_shift){
@@ -236,6 +239,7 @@ int main(int, char**) {
             }else{
                 c.pos().z -= 1;
             }
+            update_asked = true;
         }
         if(pressed_down) {
             if(!pressed_shift){
@@ -243,11 +247,14 @@ int main(int, char**) {
             }else{
                 c.pos().z += 1;
             }
+            update_asked = true;
         }
         if(pressed_plus){
             c.zoom() += 0.05;
+            update_asked = true;
         }else if(pressed_minus){
             c.zoom() -= 0.05;
+            update_asked = true;
         }
 
         // Start the Dear ImGui frame
@@ -278,7 +285,34 @@ int main(int, char**) {
                 ui_save(g);
             }
         }
-        ImGui::Checkbox("Draw verts labels", &draw_labels);
+        if (ImGui::Button("Create item")){
+            ImGui::OpenPopup("Create item");
+        }
+        {
+            ImVec2 center(ImGui::GetIO().DisplaySize.x * 0.5f,
+                    ImGui::GetIO().DisplaySize.y * 0.5f);
+            ImGui::SetNextWindowPos(center,
+                    ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+            if (ImGui::BeginPopupModal("Create item", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+                static char name[32];
+                static int coords[3];
+                ImGui::InputText("Name", &name[0], 32);
+                ImGui::InputInt3("Coords", &coords[0]);
+                if (ImGui::Button("OK", ImVec2(120, 0))){
+                    std::string str_name(&name[0]);
+                    game::item i(g.get_map().settings().materials.at(1), str_name);
+                    i.set_x(coords[0]);
+                    i.set_y(coords[1]);
+                    i.set_z(coords[2]);
+                    g.add_item(i);
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::SetItemDefaultFocus();
+                ImGui::SameLine();
+                if (ImGui::Button("Cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+                ImGui::EndPopup();
+            }
+        }
         ImGui::LabelText("Cam X", "%lu", c.pos().x);
         ImGui::LabelText("Cam Y", "%lu", c.pos().y);
         ImGui::LabelText("Cam Z", "%lu", c.pos().z);
@@ -294,38 +328,29 @@ int main(int, char**) {
         gnd_clr->g = gnd_clr_fl[1]*255;
         gnd_clr->b = gnd_clr_fl[2]*255;
 
-        if(ImGui::IsMouseClicked(0)){
-            drag_1 = ImGui::GetMousePos();
-        }
-        if(std::abs(ImGui::GetMouseDragDelta(0).x) > .0f &&
-            std::abs(ImGui::GetMouseDragDelta(0).y) > .0f)
-        {
-            drag_beg = true;
-        }
-        if(drag_beg){
-            drag_2 = ImGui::GetMousePos();
-        }
-        if(ImGui::IsMouseReleased(0)){
-            drag_2 = ImGui::GetMousePos();
-            drag_beg = false;
-        }
         auto size = ImGui::GetIO().DisplaySize;
-        //glBindTexture(GL_TEXTURE_2D, id);
-        //auto txtr_size = tile_draw_h*tile_draw_w*4;
-        std::queue<std::future<game::map::ptr_t<game::chunk>>> ftrs;
+        static std::vector<game::map::ptr_t<game::chunk>> chunks;
 
-        {
-            const auto x_end = (c.pos().x+c.fov().x+ch_w-1); //in tiles
-            const auto y_end = (c.pos().y+c.fov().y+ch_h-1); //in tiles
-            for(size_t x = c.pos().x; x < x_end; x+=ch_w){
-                for(size_t y = c.pos().y; y < y_end; y+=ch_h){
-                    auto chunk_ftr = g.get_chunk(x, y);
-                    ftrs.emplace(std::move(chunk_ftr));
+        if(update_asked){
+            chunks.clear();
+            static std::queue<std::future<game::map::ptr_t<game::chunk>>> ftrs;
+            {
+                const auto x_end = (c.pos().x+c.fov().x+ch_w-1); //in tiles
+                const auto y_end = (c.pos().y+c.fov().y+ch_h-1); //in tiles
+                for(size_t x = c.pos().x; x < x_end; x+=ch_w){
+                    for(size_t y = c.pos().y; y < y_end; y+=ch_h){
+                        auto chunk_ftr = g.get_chunk(x, y);
+                        ftrs.emplace(std::move(chunk_ftr));
+                    }
                 }
             }
+            while(!ftrs.empty()){
+                chunks.emplace_back(std::move(ftrs.front().get()));
+                ftrs.pop();
+            }
+            update_asked = false;
         }
-        while(!ftrs.empty()){
-            const auto chunk_ptr = ftrs.front().get();
+        for(const auto chunk_ptr:chunks){
             const auto& chunk = *chunk_ptr;
             const auto x_ = chunk.x();
             const auto y_ = chunk.y();
@@ -343,19 +368,17 @@ int main(int, char**) {
                         draw_coords1.y + draw_size.y};
                     for(int z = c.fov().z-1; z > -1; z--){
                         const auto& tl = chunk.get_tile(x%chunk.w(), y%chunk.h(), c.pos().z + z);
-                        const auto clr = tl.mat().color();
+                        auto clr = tl.mat().color();
+                        if(tl.size() != 0){
+                            clr = tl.at(0)->mat().color();
+                        }
                         const auto clr_imtui = ImColor(clr->r, clr->g, clr->b, clr->a);
                         drawList->AddRectFilled(draw_coords1, draw_coords2, clr_imtui);
                     }
                 }
             }
-            ftrs.pop();
         }
 
-        //drawList->AddImage((void*)(intptr_t)id, ImVec2(0,0), ImVec2(1920, 1080));
-
-        prev_drag_2 = drag_2;
-        // Rendering
         ImGui::Render();
         glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
         glClearColor(1, 1, 1, 1);

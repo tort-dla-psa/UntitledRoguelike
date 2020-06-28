@@ -41,6 +41,9 @@ tile_array::cont_t& tile_array::tiles()
 const tile& tile_array::get_tile(const dim_t &x, const dim_t &y, const dim_t &z)const
 { return m_tiles.at(x+y*m_w+z*m_w*m_h); }
 
-void tile_array::set_tile(const dim_t &x, const dim_t &y, const dim_t &z, class tile&& t)
+tile& tile_array::get_tile(const dim_t &x, const dim_t &y, const dim_t &z)
+{ return m_tiles.at(x+y*m_w+z*m_w*m_h); }
+
+void tile_array::set_tile(const dim_t &x, const dim_t &y, const dim_t &z, tile&& t)
 { m_tiles.at(x+y*m_w+z*m_w*m_h) = std::move(t); }
 

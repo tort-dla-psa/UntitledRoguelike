@@ -10,9 +10,9 @@ public:
         const dim_t &w, const dim_t &h, const dim_t &d);
     const dim_t& x()const;
     const dim_t& y()const;
-    const class tile& get_tile(const dim_t &x, const dim_t &y, const dim_t &z)const;
-    void set_tile(const dim_t &x, const dim_t &y, const dim_t &z,
-           class tile&& t);
+    const tile& get_tile(const dim_t &x, const dim_t &y, const dim_t &z)const;
+    tile& get_tile(const dim_t &x, const dim_t &y, const dim_t &z);
+    void set_tile(const dim_t &x, const dim_t &y, const dim_t &z, tile&& t);
 };
 
 }

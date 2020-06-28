@@ -3,6 +3,12 @@
 using namespace game;
 
 Imaterialistic::Imaterialistic(){}
+Imaterialistic::Imaterialistic(std::shared_ptr<material> mat) {
+    set_mat(mat);
+}
+Imaterialistic::Imaterialistic(const material &mat){
+    set_mat(mat);
+}
 
 const material& Imaterialistic::mat()const
 { return *m_mat; }

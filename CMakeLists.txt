@@ -39,10 +39,13 @@ set(SRCS
     src/cam.cpp
     src/game.cpp
     src/tile.cpp
+    src/item.cpp
     src/tile_array.cpp
     src/chunk.cpp
     src/map.cpp
     src/map_obj.cpp
+    src/phys_obj.cpp
+    src/storing.cpp
     src/material.cpp
     src/materialistic.cpp
     src/nameable.cpp

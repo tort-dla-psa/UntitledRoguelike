@@ -14,11 +14,14 @@ const chunk::dim_t& chunk::x()const
 const chunk::dim_t& chunk::y()const
 { return this->m_y; }
 
-const tile& chunk::get_tile(const dim_t &x, const dim_t &y, const dim_t &z)const{
-    return tile_array::get_tile(x%w(), y%h(), z%d());
-}
+const tile& chunk::get_tile(const dim_t &x, const dim_t &y, const dim_t &z)const
+{ return tile_array::get_tile(x%w(), y%h(), z%d()); }
+
+tile& chunk::get_tile(const dim_t &x, const dim_t &y, const dim_t &z)
+{ return tile_array::get_tile(x%w(), y%h(), z%d()); }
+
 void chunk::set_tile(const dim_t &x, const dim_t &y, const dim_t &z,
-       class tile&& t)
+       tile&& t)
 {
     tile_array::set_tile(x%w(), y%h(), z%d(), std::move(t));
 }

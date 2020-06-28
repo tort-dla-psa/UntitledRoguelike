@@ -13,6 +13,12 @@ public:
     const coord_t& x()const;
     const coord_t& y()const;
     const coord_t& z()const;
+    coord_t& x();
+    coord_t& y();
+    coord_t& z();
+    void set_x(const coord_t &c);
+    void set_y(const coord_t &c);
+    void set_z(const coord_t &c);
 };
 
 };

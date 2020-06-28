@@ -2,6 +2,7 @@
 #include "json_io.h"
 
 using namespace game;
+using items_cont = engine::items_cont;
 
 engine::engine()
     :m_sem(4)
@@ -33,6 +34,18 @@ std::future<map::ptr_t<chunk>>
     };
     return std::async(std::launch::async, std::move(task), x, y);
 }
+
+bool engine::add_item(const item &i){
+    m_items.emplace_back(std::make_shared<item>(i));
+    auto ch_ptr = m_map.get_chunk(i.x(), i.y());
+    auto &ch = *ch_ptr;
+    auto &tl = ch.get_tile(i.x(), i.y(), i.z());
+    const auto &tl_mat = tl.mat();
+    tl.emplace(i);
+    return true;
+}
+items_cont& engine::items(){ return m_items; }
+const items_cont& engine::items()const{ return m_items; }
 
 void engine::save(const std::string &path)const{
     nlohmann::json game_json = m_map;

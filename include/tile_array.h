@@ -21,9 +21,9 @@ public:
     void set_d(const dim_t &dim);
     const cont_t& tiles()const;
     cont_t& tiles();
-    const class tile& get_tile(const dim_t &x, const dim_t &y, const dim_t &z)const;
-    void set_tile(const dim_t &x, const dim_t &y, const dim_t &z,
-           class tile&& t);
+    const tile& get_tile(const dim_t &x, const dim_t &y, const dim_t &z)const;
+    tile& get_tile(const dim_t &x, const dim_t &y, const dim_t &z);
+    void set_tile(const dim_t &x, const dim_t &y, const dim_t &z, tile&& t);
 };
 
 }

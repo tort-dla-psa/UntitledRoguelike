@@ -7,6 +7,8 @@ namespace game{
 class Imaterialistic{
     std::shared_ptr<material> m_mat; //to minimize derived classes
 public:
+    Imaterialistic(std::shared_ptr<material> mat);
+    Imaterialistic(const material &mat);
     Imaterialistic();
     const material& mat()const;
     material& mat();

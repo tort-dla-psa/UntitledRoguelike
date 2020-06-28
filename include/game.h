@@ -8,6 +8,7 @@
 #include "rwqueue/readerwriterqueue.h"
 #include "map.h"
 #include "chunk.h"
+#include "item.h"
 
 namespace game{
 
@@ -44,9 +45,11 @@ public:
 
 class engine{
 public:
+    using items_cont = std::vector<std::shared_ptr<item>>;
 private:
     map m_map;
     semaphore m_sem;
+    items_cont m_items;
 public:
     engine();
     ~engine();
@@ -56,6 +59,9 @@ public:
     map& get_map();
     std::future<map::ptr_t<chunk>>
         get_chunk(const chunk::dim_t &x, const chunk::dim_t &y);
+    bool add_item(const item &i);
+    items_cont& items();
+    const items_cont& items()const;
     void save(const std::string &path)const;
     void load(const std::string &path);
 };

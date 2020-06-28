@@ -1,5 +1,8 @@
 #include "tile.h"
 using namespace game;
 
-tile::tile(){}
+tile::tile()
+    :Imaterialistic(),
+    Istoring()
+{}
 
