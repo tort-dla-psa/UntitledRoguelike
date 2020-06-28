@@ -21,13 +21,13 @@ struct map_gen_settings{
         chunk_d = 128;
 
         game::material air, gnd;
-        game::color air_clr{ 200, 245, 255, 40 };
+        auto air_clr = game::color::from_bytes(200, 245, 255, 40);
         air.set_name("air");
         air.set_color_gas(air_clr);
         air.set_color_liquid(air_clr);
         air.set_color_solid(air_clr);
 
-        game::color gnd_clr{   0,  30,   7, 255 };
+        auto gnd_clr = game::color::from_bytes(  0,  30,   7, 255);
         gnd.set_name("dirt");
         gnd.set_color_gas(gnd_clr);
         gnd.set_color_liquid(gnd_clr);

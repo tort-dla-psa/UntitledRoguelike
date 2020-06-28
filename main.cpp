@@ -57,6 +57,86 @@ void ui_load(game::engine &g){
     }
 }
 
+bool popup_create_material(std::shared_ptr<game::material> &mat){
+    bool status = false;
+    ImVec2 center(ImGui::GetIO().DisplaySize.x * 0.5f,
+            ImGui::GetIO().DisplaySize.y * 0.5f);
+    ImGui::SetNextWindowPos(center,
+            ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    if (ImGui::BeginPopupModal("Create material", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        static float t_gas_to_liquid;
+        static float t_liquid_to_solid;
+        static float clr_gas_fl[4];
+        static float clr_liquid_fl[4];
+        static float clr_solid_fl[4];
+        static char name[32];
+        ImGui::InputText("Name", &name[0], 32);
+        ImGui::ColorEdit4("Color gas", clr_gas_fl);
+        ImGui::ColorEdit4("Color liquid", clr_liquid_fl);
+        ImGui::ColorEdit4("Color solid", clr_solid_fl);
+        ImGui::InputFloat("T gas to liquid", &t_gas_to_liquid);
+        ImGui::InputFloat("T liquid to solid", &t_liquid_to_solid);
+        if (ImGui::Button("OK", ImVec2(120, 0))){
+            std::string str_name(&name[0]);
+            auto clr_gas = std::make_shared<game::color>(
+                game::color::from_floats4(clr_gas_fl));
+            auto clr_liquid = std::make_shared<game::color>(
+                game::color::from_floats4(clr_liquid_fl));
+            auto clr_solid = std::make_shared<game::color>(
+                game::color::from_floats4(clr_solid_fl));
+            mat = std::make_shared<game::material>();
+            mat->set_color_gas(clr_gas);
+            mat->set_color_liquid(clr_liquid);
+            mat->set_color_solid(clr_solid);
+            mat->set_gas_to_liquid(t_gas_to_liquid);
+            mat->set_liquid_to_solid(t_liquid_to_solid);
+            ImGui::CloseCurrentPopup();
+            status = true;
+        }
+        ImGui::SetItemDefaultFocus();
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+    return status;
+}
+bool popup_create_item(game::item *i){
+    bool status = false;
+    ImVec2 center(ImGui::GetIO().DisplaySize.x * 0.5f,
+            ImGui::GetIO().DisplaySize.y * 0.5f);
+    ImGui::SetNextWindowPos(center,
+            ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    if (ImGui::BeginPopupModal("Create item", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        static char name[32];
+        static int coords[3];
+        std::shared_ptr<game::material> mat = nullptr;
+        if(ImGui::Button("Material")){
+            ImGui::OpenPopup("Create material");
+        }
+        popup_create_material(mat);
+        ImGui::InputText("Name", &name[0], 32);
+        ImGui::InputInt3("Coords", &coords[0]);
+        if (ImGui::Button("OK", ImVec2(120, 0)) && mat){
+            std::string str_name(&name[0]);
+            i = new game::item(mat, str_name);
+            i->set_x(coords[0]);
+            i->set_y(coords[1]);
+            i->set_z(coords[2]);
+            ImGui::CloseCurrentPopup();
+            status = true;
+        }
+        ImGui::SetItemDefaultFocus();
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+    return status;
+}
+
 int main(int, char**) {
     game::engine g;
 
@@ -289,29 +369,12 @@ int main(int, char**) {
             ImGui::OpenPopup("Create item");
         }
         {
-            ImVec2 center(ImGui::GetIO().DisplaySize.x * 0.5f,
-                    ImGui::GetIO().DisplaySize.y * 0.5f);
-            ImGui::SetNextWindowPos(center,
-                    ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-            if (ImGui::BeginPopupModal("Create item", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-                static char name[32];
-                static int coords[3];
-                ImGui::InputText("Name", &name[0], 32);
-                ImGui::InputInt3("Coords", &coords[0]);
-                if (ImGui::Button("OK", ImVec2(120, 0))){
-                    std::string str_name(&name[0]);
-                    game::item i(g.get_map().settings().materials.at(1), str_name);
-                    i.set_x(coords[0]);
-                    i.set_y(coords[1]);
-                    i.set_z(coords[2]);
-                    g.add_item(i);
-                    ImGui::CloseCurrentPopup();
-                }
-                ImGui::SetItemDefaultFocus();
-                ImGui::SameLine();
-                if (ImGui::Button("Cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
-                ImGui::EndPopup();
-            }
+            game::item* i_ptr;
+            if(popup_create_item(i_ptr)){
+                game::item i = *i_ptr;
+                g.add_item(i);
+                delete i_ptr;
+            };
         }
         ImGui::LabelText("Cam X", "%lu", c.pos().x);
         ImGui::LabelText("Cam Y", "%lu", c.pos().y);
@@ -320,13 +383,10 @@ int main(int, char**) {
         ImGui::ColorEdit3("Ground color", gnd_clr_fl);
         ImGui::End();
 
-        air_clr->r = air_clr_fl[0]*255;
-        air_clr->g = air_clr_fl[1]*255;
-        air_clr->b = air_clr_fl[2]*255;
-        air_clr->a = air_clr_fl[3]*255;
-        gnd_clr->r = gnd_clr_fl[0]*255;
-        gnd_clr->g = gnd_clr_fl[1]*255;
-        gnd_clr->b = gnd_clr_fl[2]*255;
+        air_clr = std::make_shared<game::color>(
+            game::color::from_floats3(air_clr_fl));
+        gnd_clr = std::make_shared<game::color>(
+            game::color::from_floats3(gnd_clr_fl));
 
         auto size = ImGui::GetIO().DisplaySize;
         static std::vector<game::map::ptr_t<game::chunk>> chunks;
